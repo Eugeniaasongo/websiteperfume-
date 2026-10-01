@@ -1,0 +1,26 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  --ink: #0B0B0B;
+  --paper: #FFFFFF;
+  --paper-soft: #FAF7F2;
+  --gold: #B08A4A;
+  --gold-deep: #8C6A2F;
+  --charcoal: #222222;
+  --alert-red: #B3202A;
+}
+
+body {
+  color: var(--ink);
+  background-color: var(--paper);
+  font-family: 'Jost', 'Montserrat', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-serif {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}

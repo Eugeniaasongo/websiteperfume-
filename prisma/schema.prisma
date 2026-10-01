@@ -1,0 +1,219 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String     @id @default(uuid())
+  email           String     @unique
+  name            String?
+  phone           String?
+  passwordHash    String?
+  role            String     @default("CUSTOMER") // CUSTOMER, ADMIN, STAFF, FULFILMENT
+  twoFactorSecret String?
+  twoFactorActive Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  orders          Order[]
+  auditLogs       AuditLog[]
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  products    Product[]
+}
+
+model Collection {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  products    Product[]
+}
+
+model Product {
+  id                 String           @id @default(uuid())
+  slug               String           @unique
+  name               String
+  tagline            String?
+  description        String
+  gender             String           @default("UNISEX") // WOMEN, MEN, UNISEX, MAKEUP
+  longevity          Int              @default(4) // 1-5 scale
+  projection         Int              @default(4) // 1-5 scale
+  occasionTags       String           @default("") // comma-separated
+  seasonTags         String           @default("") // comma-separated
+  legalReviewFlagged Boolean          @default(false)
+  isPublished        Boolean          @default(true)
+  isFeatured         Boolean          @default(false)
+  isBestseller       Boolean          @default(false)
+  isNew              Boolean          @default(false)
+  sortOrder          Int              @default(0)
+  categoryId         String?
+  category           Category?        @relation(fields: [categoryId], references: [id])
+  collectionId       String?
+  collection         Collection?      @relation(fields: [collectionId], references: [id])
+  variants           ProductVariant[]
+  images             ProductImage[]
+  scentNotes         ScentNote[]
+  reviews            Review[]
+  orderItems         OrderItem[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model ProductVariant {
+  id             String      @id @default(uuid())
+  sku            String      @unique
+  size           String      // 30ml, 50ml, 100ml
+  price          Float
+  compareAtPrice Float?
+  stock          Int         @default(0)
+  productId      String
+  product        Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  url       String
+  altText   String?
+  sortOrder Int      @default(0)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ScentNote {
+  id        String   @id @default(uuid())
+  type      String   // TOP, HEART, BASE
+  name      String
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id               String   @id @default(uuid())
+  rating           Int
+  authorName       String
+  authorEmail      String
+  title            String?
+  comment          String
+  verifiedPurchase Boolean  @default(false)
+  isApproved       Boolean  @default(true)
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+}
+
+model Discount {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  type        String    @default("PERCENTAGE") // PERCENTAGE, FIXED_AMOUNT
+  value       Float
+  minOrderVal Float     @default(0)
+  maxUses     Int?
+  usedCount   Int       @default(0)
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+}
+
+model DeliveryZone {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  regions         String   // Comma separated e.g. "Greater Accra, Eastern"
+  fee             Float
+  minOrderForFree Float?
+  codAllowed      Boolean  @default(true)
+  maxCodValue     Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Order {
+  id                 String      @id @default(uuid())
+  orderNumber        String      @unique
+  idempotencyKey     String?     @unique
+  userId             String?
+  user               User?       @relation(fields: [userId], references: [id])
+  customerName       String
+  customerEmail      String
+  customerPhone      String
+  region             String
+  city               String
+  landmark           String?
+  ghanaPostGps       String?
+  status             String      @default("PENDING_PAYMENT") // PENDING_PAYMENT, PAID, COD_PENDING, PROCESSING, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, FAILED, REFUNDED, PARTIALLY_REFUNDED
+  paymentMethod      String      @default("PAYSTACK") // PAYSTACK, COD
+  subtotal           Float
+  discountTotal      Float       @default(0)
+  deliveryFee        Float
+  codFee             Float       @default(0)
+  total              Float
+  codVerified        Boolean     @default(false)
+  codOtpCode         String?
+  codOtpExpiresAt    DateTime?
+  stockReservedUntil DateTime?
+  courierName        String?
+  trackingNotes      String?
+  items              OrderItem[]
+  payments           Payment[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String         @id @default(uuid())
+  quantity    Int
+  unitPrice   Float
+  totalAmount Float
+  orderId     String
+  order       Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  productId   String
+  product     Product        @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id              String    @id @default(uuid())
+  transactionRef  String    @unique
+  paymentMethod   String    // PAYSTACK, COD
+  status          String    @default("PENDING") // PENDING, SUCCESS, FAILED, REFUNDED
+  amount          Float
+  gatewayResponse String?
+  paidAt          DateTime?
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+}
+
+model WebhookEvent {
+  id          String    @id @default(uuid())
+  eventId     String    @unique
+  provider    String    @default("paystack")
+  eventType   String
+  payload     String
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  adminUserId String?
+  adminUser   User?    @relation(fields: [adminUserId], references: [id])
+  action      String
+  entity      String
+  entityId    String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+}
